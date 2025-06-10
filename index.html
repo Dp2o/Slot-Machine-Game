@@ -9,13 +9,19 @@
       background: #111;
       color: #fff;
       font-family: 'Segoe UI', sans-serif;
-      text-align: center;
+      display: flex;
+      flex-direction: row;
       padding: 2rem;
+      gap: 2rem;
+    }
+
+    .main-area {
+      flex: 2;
     }
 
     h1 {
-      font-size: 2.5rem;
-      margin-bottom: 1rem;
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
     }
 
     .slot-machine {
@@ -40,23 +46,24 @@
       transition: all 0.3s ease;
     }
 
-    .controls {
-      margin-top: 1.5rem;
-    }
-
     button {
       background: #28a745;
       color: white;
       border: none;
-      padding: 12px 24px;
-      font-size: 1.2rem;
-      border-radius: 8px;
+      padding: 10px 20px;
+      font-size: 1rem;
+      border-radius: 6px;
       cursor: pointer;
       transition: background 0.2s ease;
+      margin: 5px;
     }
 
     button:hover {
       background: #218838;
+    }
+
+    .controls, .shop, .settings {
+      margin-top: 1rem;
     }
 
     .message {
@@ -65,47 +72,118 @@
     }
 
     .balance {
-      font-size: 1.1rem;
-      margin-top: 0.5rem;
+      font-size: 1rem;
+      margin-top: 0.3rem;
+    }
+
+    .sidebar {
+      flex: 1;
+      background: #222;
+      border-radius: 12px;
+      padding: 1rem;
+      height: fit-content;
+    }
+
+    .sidebar h2 {
+      margin-top: 0;
+    }
+
+    .slot-tier, .shop-item {
+      margin: 0.5rem 0;
+      padding: 0.5rem;
+      background: #333;
+      border-radius: 8px;
+      font-size: 0.9rem;
+    }
+
+    .slot-tier span, .shop-item span {
+      display: block;
+      margin: 2px 0;
     }
   </style>
 </head>
 <body>
 
-  <h1>🎰 Big Emoji Slot Machine</h1>
-  <p>Match emojis in rows or columns to win!</p>
+  <div class="main-area">
+    <h1>🎰 Emoji Slot Machine</h1>
+    <div class="balance" id="balance">Balance: 100</div>
+    <div class="slot-machine" id="machine"></div>
 
-  <div class="slot-machine" id="machine"></div>
+    <div class="controls">
+      <button onclick="spin()">Spin (10 coins)</button>
+    </div>
 
-  <div class="controls">
-    <button onclick="spin()">Spin (10 coins)</button>
+    <div class="message" id="message">Press Spin to play.</div>
+
+    <div class="settings">
+      <h2>⚙️ Settings</h2>
+      <button onclick="resetGame()">Restart Game</button>
+    </div>
+
+    <div class="shop">
+      <h2>🛍 Shop</h2>
+      <button onclick="buyItem('doubleProfit')">Buy Double Profit Boost (15%) - 50 coins</button>
+    </div>
   </div>
 
-  <div class="message" id="message">Press Spin to play.</div>
-  <div class="balance" id="balance">Balance: 100</div>
+  <div class="sidebar">
+    <h2>📋 Slot Machines</h2>
+    <div id="tierList"></div>
+  </div>
 
   <script>
     const emojis = ["🍒", "🍋", "🍉", "💎", "⭐", "🔔"];
     const rows = 4;
     const cols = 6;
+    const baseSpinCost = 10;
     let balance = 100;
+    let grid = [];
+    let boosts = {
+      doubleProfit: false,
+    };
+
+    const tiers = [
+      { name: "Basic Slots", chance: 0.4, reward: 20, cost: 10 },
+      { name: "Mid Slots", chance: 0.25, reward: 40, cost: 20 },
+      { name: "High Stakes", chance: 0.1, reward: 100, cost: 50 }
+    ];
 
     const machineEl = document.getElementById("machine");
     const messageEl = document.getElementById("message");
     const balanceEl = document.getElementById("balance");
+    const tierListEl = document.getElementById("tierList");
 
-    // Create initial grid
-    const grid = [];
-    for (let r = 0; r < rows; r++) {
-      const row = [];
-      for (let c = 0; c < cols; c++) {
-        const div = document.createElement("div");
-        div.classList.add("reel");
-        div.textContent = "❔";
-        machineEl.appendChild(div);
-        row.push(div);
+    // Build grid
+    function buildGrid() {
+      machineEl.innerHTML = "";
+      grid = [];
+      for (let r = 0; r < rows; r++) {
+        const row = [];
+        for (let c = 0; c < cols; c++) {
+          const div = document.createElement("div");
+          div.classList.add("reel");
+          div.textContent = "❔";
+          machineEl.appendChild(div);
+          row.push(div);
+        }
+        grid.push(row);
       }
-      grid.push(row);
+    }
+
+    // Draw tier list
+    function drawTierList() {
+      tierListEl.innerHTML = "";
+      for (const tier of tiers) {
+        const el = document.createElement("div");
+        el.className = "slot-tier";
+        el.innerHTML = `
+          <strong>${tier.name}</strong>
+          <span>Spin Cost: ${tier.cost} coins</span>
+          <span>Win Chance: ${(tier.chance * 100).toFixed(0)}%</span>
+          <span>Reward: ${tier.reward} coins</span>
+        `;
+        tierListEl.appendChild(el);
+      }
     }
 
     function getRandomEmoji() {
@@ -113,15 +191,15 @@
     }
 
     function spin() {
-      if (balance < 10) {
+      const tier = tiers[0]; // Use basic tier for now
+      if (balance < tier.cost) {
         messageEl.textContent = "💸 Not enough coins!";
         return;
       }
 
-      balance -= 10;
+      balance -= tier.cost;
       const values = [];
 
-      // Fill grid with emojis
       for (let r = 0; r < rows; r++) {
         values[r] = [];
         for (let c = 0; c < cols; c++) {
@@ -131,10 +209,16 @@
         }
       }
 
-      const winAmount = checkWins(values);
-      if (winAmount > 0) {
-        balance += winAmount;
-        messageEl.textContent = `🎉 You win ${winAmount} coins!`;
+      let win = Math.random() < tier.chance;
+      if (win) {
+        let payout = tier.reward;
+        if (boosts.doubleProfit && Math.random() < 0.15) {
+          payout *= 2;
+          messageEl.textContent = "💥 Boost activated! Double payout!";
+        } else {
+          messageEl.textContent = `🎉 You win ${payout} coins!`;
+        }
+        balance += payout;
       } else {
         messageEl.textContent = "😢 No match. Try again!";
       }
@@ -142,35 +226,34 @@
       balanceEl.textContent = `Balance: ${balance}`;
     }
 
-    function checkWins(grid) {
-      let winnings = 0;
-
-      // Check horizontal matches
-      for (let r = 0; r < rows; r++) {
-        for (let c = 0; c <= cols - 3; c++) {
-          const e1 = grid[r][c];
-          const e2 = grid[r][c+1];
-          const e3 = grid[r][c+2];
-          if (e1 === e2 && e2 === e3) {
-            winnings += 20;
-          }
-        }
-      }
-
-      // Check vertical matches
-      for (let c = 0; c < cols; c++) {
-        for (let r = 0; r <= rows - 3; r++) {
-          const e1 = grid[r][c];
-          const e2 = grid[r+1][c];
-          const e3 = grid[r+2][c];
-          if (e1 === e2 && e2 === e3) {
-            winnings += 20;
-          }
-        }
-      }
-
-      return winnings;
+    function resetGame() {
+      balance = 100;
+      boosts.doubleProfit = false;
+      messageEl.textContent = "Game reset.";
+      balanceEl.textContent = `Balance: ${balance}`;
+      buildGrid();
     }
+
+    function buyItem(item) {
+      if (item === "doubleProfit") {
+        if (balance < 50) {
+          messageEl.textContent = "❌ Not enough coins for Double Profit Boost!";
+          return;
+        }
+        if (boosts.doubleProfit) {
+          messageEl.textContent = "🟡 You already own this boost.";
+          return;
+        }
+        balance -= 50;
+        boosts.doubleProfit = true;
+        messageEl.textContent = "✅ Double Profit Boost activated!";
+        balanceEl.textContent = `Balance: ${balance}`;
+      }
+    }
+
+    // Initialize
+    buildGrid();
+    drawTierList();
   </script>
 
 </body>
