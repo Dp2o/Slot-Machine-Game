@@ -156,73 +156,195 @@ SEGMENTS:
   </div>
 
   <!-- SEGMENT 3: JS LOGIC -->
-  <script>
-    // ... same previous JS logic ...
+<script>
+let spincost = 10;
+let balance = 100;
+let boosts = { doubleProfit: false };
+let grid = [];
+const rows = 4;
+const cols = 6;
+const symbols = ["🍒", "🍋", "🔔", "🧊", "⭐", "💎", "☢"];
+const tierValues = {
+  "🍒": { chance: 0.3, reward: 10 },
+  "🍋": { chance: 0.3, reward: 10 },
+  "🔔": { chance: 0.2, reward: 30 },
+  "🧊": { chance: 0.2, reward: 30 },
+  "⭐": { chance: 0.1, reward: 50 },
+  "💎": { chance: 0.1, reward: 50 },
+  "☢": { chance: 0.05, reward: 100 },
+};
 
-    function checkPatterns(grid, baseReward) {
-      let matched = [];
-      const countSymbol = (line) => line.reduce((acc, s) => (acc[s] = (acc[s] || 0) + 1, acc), {});
+function toggleDropdown(button) {
+  button.parentElement.classList.toggle("active");
+}
 
-      const linesToCheck = [];
+function updateBalance() {
+  document.getElementById("balance").textContent = `Balance: ${balance}`;
+}
 
-      for (let r = 0; r < rows; r++)
-        for (let c = 0; c <= cols - 3; c++)
-          linesToCheck.push(grid[r].slice(c, c + 3));
+function resetGame() {
+  balance = 100;
+  boosts = { doubleProfit: false };
+  updateBalance();
+  document.getElementById("message").textContent = "Game reset.";
+}
 
-      for (let c = 0; c < cols; c++)
-        for (let r = 0; r <= rows - 3; r++)
-          linesToCheck.push([grid[r][c], grid[r + 1][c], grid[r + 2][c]]);
+function buyItem(item, price) {
+  if (item === 'doubleProfit' && balance >= 50) {
+    balance -= 50;
+    boosts.doubleProfit = true;
+    updateBalance();
+    document.getElementById("message").textContent = "Double Profit Boost activated!";
+  } else {
+    document.getElementById("message").textContent = "Not enough coins.";
+  }
+}
 
-      for (let r = 0; r <= rows - 3; r++)
-        for (let c = 0; c <= cols - 3; c++) {
-          linesToCheck.push([grid[r][c], grid[r + 1][c + 1], grid[r + 2][c + 2]]);
-          linesToCheck.push([grid[r + 2][c], grid[r + 1][c + 1], grid[r][c + 2]]);
+function drawTierList() {
+  const tierDiv = document.getElementById("tierList");
+  tierDiv.innerHTML = "";
+  for (let sym in tierValues) {
+    let tier = tierValues[sym];
+    tierDiv.innerHTML += `<div class="slot-tier">${sym} → ${Math.floor(tier.chance * 100)}%  ${tier.reward} 💰</div>`;
+  }
+}
+
+function spin() {
+  if (balance < spincost) {
+    document.getElementById("message").textContent = "Not enough coins to spin!";
+    return;
+  }
+
+  balance -= spincost;
+  updateBalance();
+  grid = [];
+  const slots = document.getElementById("machine");
+  slots.innerHTML = "";
+
+  // Create empty grid elements
+  for (let r = 0; r < rows; r++) {
+    grid[r] = [];
+    for (let c = 0; c < cols; c++) {
+      const div = document.createElement("div");
+      div.className = "reel";
+      slots.appendChild(div);
+    }
+  }
+
+  // Animate and populate the reels
+  let i = 0;
+  const reels = document.querySelectorAll(".reel");
+  reels.forEach((reel, idx) => {
+    const r = Math.floor(idx / cols);
+    const c = idx % cols;
+    const spinCount = 10 + Math.floor(Math.random() * 10);
+    let count = 0;
+    const spinInterval = setInterval(() => {
+      const randSym = symbols[Math.floor(Math.random() * symbols.length)];
+      reel.textContent = randSym;
+      if (++count >= spinCount) {
+        clearInterval(spinInterval);
+        const final = symbols[Math.floor(Math.random() * symbols.length)];
+        reel.textContent = final;
+        grid[r][c] = final;
+
+        // When last reel finishes, check patterns
+        if (r === rows - 1 && c === cols - 1) {
+          setTimeout(() => checkPatterns(grid), 300);
         }
-
-      linesToCheck.forEach(line => {
-        const freq = countSymbol(line);
-        for (let sym in freq) if (freq[sym] >= 3)
-          matched.push({ count: freq[sym], symbol: sym });
-      });
-
-      const allSame = grid.flat().every(sym => sym === grid[0][0]);
-      if (allSame) matched.push({ count: rows * cols, symbol: grid[0][0], jackpot: true });
-
-      if (matched.length === 0) {
-        document.getElementById("message").textContent = "No match. Try again!";
-        return;
       }
+    }, 30 + Math.random() * 20);
+  });
+}
 
-      let totalReward = 0;
-      let prevBalance = balance;
-      let messages = [];
+function checkPatterns(grid) {
+  let matched = [];
+  const countSymbol = (line) => {
+    return line.reduce((acc, s) => {
+      acc[s] = (acc[s] || 0) + 1;
+      return acc;
+    }, {});
+  };
 
-      matched.forEach(match => {
-        let multiplier = match.count / 3;
-        let reward = Math.floor(baseReward * multiplier);
-        if (match.jackpot) {
-          showJackpot();
-          reward *= 5;
+  // Horizontal & Vertical
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c <= cols - 3; c++) {
+      const line = grid[r].slice(c, c + 3);
+      const freq = countSymbol(line);
+      for (let sym in freq) {
+        if (freq[sym] >= 3) matched.push({ count: freq[sym], symbol: sym });
+      }
+    }
+  }
+  for (let c = 0; c < cols; c++) {
+    for (let r = 0; r <= rows - 3; r++) {
+      const line = [grid[r][c], grid[r + 1][c], grid[r + 2][c]];
+      const freq = countSymbol(line);
+      for (let sym in freq) {
+        if (freq[sym] >= 3) matched.push({ count: freq[sym], symbol: sym });
+      }
+    }
+  }
+
+  // Diagonals
+  for (let r = 0; r <= rows - 3; r++) {
+    for (let c = 0; c <= cols - 3; c++) {
+      const diag1 = [grid[r][c], grid[r + 1][c + 1], grid[r + 2][c + 2]];
+      const diag2 = [grid[r + 2][c], grid[r + 1][c + 1], grid[r][c + 2]];
+      [diag1, diag2].forEach(line => {
+        const freq = countSymbol(line);
+        for (let sym in freq) {
+          if (freq[sym] >= 3) matched.push({ count: freq[sym], symbol: sym });
         }
-        if (boosts.doubleProfit && Math.random() < 0.15) {
-          reward *= 2;
-          messages.push(`Lucky boost! ${match.symbol} x${match.count} → ${reward} 💰`);
-        } else {
-          messages.push(`${match.symbol} x${match.count} → ${reward} 💰`);
-        }
-        totalReward += reward;
       });
+    }
+  }
 
-      balance += totalReward;
-      updateBalance();
+  // Mega match: all grid same
+  const allSame = grid.flat().every(sym => sym === grid[0][0]);
+  if (allSame) matched.push({ count: rows * cols, symbol: grid[0][0], jackpot: true });
 
-      messages.push(`\nBalance before: ${prevBalance} 💰`);
-      messages.push(`Total won: +${totalReward} 💰`);
-      messages.push(`New balance: ${balance} 💰`);
-      document.getElementById("message").textContent = messages.join("\n");
+  // Handle result
+  if (matched.length === 0) {
+    document.getElementById("message").textContent = "No match. Try again!";
+    return;
+  }
+
+  let totalReward = 0;
+  matched.forEach(match => {
+    const base = tierValues[match.symbol]?.reward || 10;
+    let reward = base * Math.floor(match.count / 3);
+    if (match.jackpot) {
+      showJackpot();
+      reward *= 5;
     }
 
-    drawTierList();
-  </script>
+    if (boosts.doubleProfit && Math.random() < 0.15) {
+      reward *= 2;
+      document.getElementById("message").textContent =
+        `Lucky Boost!\n${match.symbol} x${match.count} → ${reward} 💰`;
+    } else {
+      document.getElementById("message").textContent =
+        `${match.symbol} x${match.count} → ${reward} 💰`;
+    }
+
+    totalReward += reward;
+  });
+
+  balance += totalReward;
+  updateBalance();
+}
+
+function showJackpot() {
+  const text = document.createElement("div");
+  text.className = "jackpot-text";
+  text.textContent = "JACKPOT!";
+  document.body.appendChild(text);
+  setTimeout(() => text.remove(), 2000);
+}
+
+drawTierList();
+updateBalance();
+</script>
 </body>
 </html>
