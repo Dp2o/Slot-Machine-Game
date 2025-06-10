@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Slot Machine</title>
+  <title>Emoji Slot Machine</title>
   <style>
     body {
       background: #111;
@@ -13,8 +13,16 @@
       padding: 2rem;
     }
 
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+    }
+
     .slot-machine {
-      display: flex;
+      display: grid;
+      grid-template-columns: repeat(6, 80px);
+      grid-template-rows: repeat(4, 80px);
+      gap: 10px;
       justify-content: center;
       margin: 2rem 0;
     }
@@ -25,7 +33,6 @@
       border-radius: 12px;
       width: 80px;
       height: 80px;
-      margin: 0 10px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -41,7 +48,7 @@
       background: #28a745;
       color: white;
       border: none;
-      padding: 10px 20px;
+      padding: 12px 24px;
       font-size: 1.2rem;
       border-radius: 8px;
       cursor: pointer;
@@ -65,15 +72,10 @@
 </head>
 <body>
 
-  <h1>🎰 Slot Machine</h1>
-  <p>Match all 4 to win 50 coins!</p>
+  <h1>🎰 Big Emoji Slot Machine</h1>
+  <p>Match emojis in rows or columns to win!</p>
 
-  <div class="slot-machine">
-    <div class="reel" id="reel1">?</div>
-    <div class="reel" id="reel2">?</div>
-    <div class="reel" id="reel3">?</div>
-    <div class="reel" id="reel4">?</div>
-  </div>
+  <div class="slot-machine" id="machine"></div>
 
   <div class="controls">
     <button onclick="spin()">Spin (10 coins)</button>
@@ -83,35 +85,91 @@
   <div class="balance" id="balance">Balance: 100</div>
 
   <script>
-    const slotValues = [1, 2, 3, 4, 5, 6];
+    const emojis = ["🍒", "🍋", "🍉", "💎", "⭐", "🔔"];
+    const rows = 4;
+    const cols = 6;
     let balance = 100;
 
-    function getRandomValue() {
-      return slotValues[Math.floor(Math.random() * slotValues.length)];
+    const machineEl = document.getElementById("machine");
+    const messageEl = document.getElementById("message");
+    const balanceEl = document.getElementById("balance");
+
+    // Create initial grid
+    const grid = [];
+    for (let r = 0; r < rows; r++) {
+      const row = [];
+      for (let c = 0; c < cols; c++) {
+        const div = document.createElement("div");
+        div.classList.add("reel");
+        div.textContent = "❔";
+        machineEl.appendChild(div);
+        row.push(div);
+      }
+      grid.push(row);
+    }
+
+    function getRandomEmoji() {
+      return emojis[Math.floor(Math.random() * emojis.length)];
     }
 
     function spin() {
       if (balance < 10) {
-        document.getElementById("message").textContent = "💸 Not enough coins!";
+        messageEl.textContent = "💸 Not enough coins!";
         return;
       }
 
       balance -= 10;
-      const reels = [getRandomValue(), getRandomValue(), getRandomValue(), getRandomValue()];
-      
-      document.getElementById("reel1").textContent = reels[0];
-      document.getElementById("reel2").textContent = reels[1];
-      document.getElementById("reel3").textContent = reels[2];
-      document.getElementById("reel4").textContent = reels[3];
+      const values = [];
 
-      if (reels.every(val => val === reels[0])) {
-        document.getElementById("message").textContent = "🎉 Jackpot! You win 50 coins!";
-        balance += 50;
-      } else {
-        document.getElementById("message").textContent = "😢 No match. Try again!";
+      // Fill grid with emojis
+      for (let r = 0; r < rows; r++) {
+        values[r] = [];
+        for (let c = 0; c < cols; c++) {
+          const emoji = getRandomEmoji();
+          values[r][c] = emoji;
+          grid[r][c].textContent = emoji;
+        }
       }
 
-      document.getElementById("balance").textContent = `Balance: ${balance}`;
+      const winAmount = checkWins(values);
+      if (winAmount > 0) {
+        balance += winAmount;
+        messageEl.textContent = `🎉 You win ${winAmount} coins!`;
+      } else {
+        messageEl.textContent = "😢 No match. Try again!";
+      }
+
+      balanceEl.textContent = `Balance: ${balance}`;
+    }
+
+    function checkWins(grid) {
+      let winnings = 0;
+
+      // Check horizontal matches
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c <= cols - 3; c++) {
+          const e1 = grid[r][c];
+          const e2 = grid[r][c+1];
+          const e3 = grid[r][c+2];
+          if (e1 === e2 && e2 === e3) {
+            winnings += 20;
+          }
+        }
+      }
+
+      // Check vertical matches
+      for (let c = 0; c < cols; c++) {
+        for (let r = 0; r <= rows - 3; r++) {
+          const e1 = grid[r][c];
+          const e2 = grid[r+1][c];
+          const e3 = grid[r+2][c];
+          if (e1 === e2 && e2 === e3) {
+            winnings += 20;
+          }
+        }
+      }
+
+      return winnings;
     }
   </script>
 
