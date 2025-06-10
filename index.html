@@ -1,9 +1,22 @@
+<!--
+SEGMENTS:
+1. HTML STRUCTURE
+2. CSS STYLING
+3. JS LOGIC
+  - Grid setup
+  - Spin logic
+  - Jackpot animation
+  - Dropdown toggle
+-->
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Emoji Slot Machine</title>
+
+  <!-- SEGMENT 2: CSS STYLING -->
   <style>
     body {
       background: #111;
@@ -14,16 +27,7 @@
       padding: 2rem;
       gap: 2rem;
     }
-
-    .main-area {
-      flex: 2;
-    }
-
-    h1 {
-      font-size: 2rem;
-      margin-bottom: 0.5rem;
-    }
-
+    .main-area { flex: 2; }
     .slot-machine {
       display: grid;
       grid-template-columns: repeat(6, 80px);
@@ -32,7 +36,6 @@
       justify-content: center;
       margin: 2rem 0;
     }
-
     .reel {
       background: #222;
       border: 2px solid #444;
@@ -43,9 +46,12 @@
       align-items: center;
       justify-content: center;
       font-size: 2rem;
-      transition: all 0.3s ease;
+      animation: spinIn 0.4s ease-in-out;
     }
-
+    @keyframes spinIn {
+      0% { transform: scale(0); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
     button {
       background: #28a745;
       color: white;
@@ -54,24 +60,10 @@
       font-size: 1rem;
       border-radius: 6px;
       cursor: pointer;
-      transition: background 0.2s ease;
       margin: 5px;
     }
-
-    button:hover {
-      background: #218838;
-    }
-
-    .message {
-      margin-top: 1rem;
-      font-size: 1.2rem;
-    }
-
-    .balance {
-      font-size: 1rem;
-      margin-top: 0.3rem;
-    }
-
+    .message { margin-top: 1rem; font-size: 1.2rem; }
+    .balance { font-size: 1rem; margin-top: 0.3rem; }
     .sidebar {
       flex: 1;
       background: #222;
@@ -79,11 +71,6 @@
       padding: 1rem;
       height: fit-content;
     }
-
-    .sidebar h2 {
-      margin-top: 0;
-    }
-
     .slot-tier {
       margin: 0.5rem 0;
       padding: 0.5rem;
@@ -91,30 +78,13 @@
       border-radius: 8px;
       font-size: 0.9rem;
     }
-
-    .slot-tier span {
-      display: block;
-      margin: 2px 0;
-    }
-
     .dropdown {
       background: #222;
-      border: 1px solid #444;
       border-radius: 8px;
       margin: 0.5rem 0;
-      overflow: hidden;
-      transition: max-height 0.3s ease;
     }
-
-    .dropdown-content {
-      padding: 1rem;
-      display: none;
-    }
-
-    .dropdown.active .dropdown-content {
-      display: block;
-    }
-
+    .dropdown-content { padding: 1rem; display: none; }
+    .dropdown.active .dropdown-content { display: block; }
     .dropdown-btn {
       background: #333;
       color: white;
@@ -125,28 +95,53 @@
       text-align: left;
       cursor: pointer;
       border-radius: 8px;
-      margin-bottom: 0.5rem;
+    }
+    .jackpot-text {
+      position: fixed;
+      top: 40%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0);
+      font-size: 4rem;
+      font-weight: bold;
+      color: gold;
+      text-shadow: 2px 2px 8px black;
+      animation: jackpotPop 1.5s ease-in-out forwards;
+      z-index: 1000;
+    }
+    @keyframes jackpotPop {
+      0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+      30% { transform: translate(-50%, -50%) scale(1.5); opacity: 1; }
+      60% { transform: translate(-50%, -50%) scale(1.2); }
+      100% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+    }
+    .confetti {
+      position: fixed;
+      width: 8px;
+      height: 8px;
+      background-color: red;
+      z-index: 999;
+      animation: fall 2s linear forwards;
+    }
+    @keyframes fall {
+      0% { transform: translateY(0) rotate(0deg); }
+      100% { transform: translateY(100vh) rotate(360deg); opacity: 0; }
     }
   </style>
 </head>
-<body>
 
+<!-- SEGMENT 1: HTML STRUCTURE -->
+<body>
   <div class="main-area">
     <h1>🎰 Emoji Slot Machine</h1>
     <div class="balance" id="balance">Balance: 100</div>
     <div class="slot-machine" id="machine"></div>
-
-    <div class="controls">
-      <button onclick="spin()">Spin (10 coins)</button>
-    </div>
-
+    <button onclick="spin()">Spin (10 coins)</button>
     <div class="message" id="message">Press Spin to play.</div>
 
     <div class="dropdown">
       <button class="dropdown-btn" onclick="toggleDropdown(this)">⚙️ Settings</button>
       <div class="dropdown-content">
         <button onclick="resetGame()">Restart Game</button>
-        <p>More settings coming soon!</p>
       </div>
     </div>
 
@@ -159,26 +154,20 @@
   </div>
 
   <div class="sidebar">
-    <h2>📋 Slot Machines</h2>
+    <h2>📋 Slot Tiers</h2>
     <div id="tierList"></div>
   </div>
 
+  <!-- SEGMENT 3: JS LOGIC -->
   <script>
-    const rows = 4;
-    const cols = 6;
+    const rows = 4, cols = 6;
     let balance = 100;
+    let boosts = { doubleProfit: false };
     let grid = [];
-    let boosts = {
-      doubleProfit: false,
-    };
 
-    // Define tiers with emojis and weights
     const tiers = [
       {
-        name: "Basic Slots",
-        cost: 10,
-        chance: 0.4,
-        reward: 20,
+        name: "Basic Slots", cost: 10, chance: 0.4, reward: 20,
         emojis: [
           { symbol: "🍒", weight: 5 },
           { symbol: "🍋", weight: 4 },
@@ -187,153 +176,134 @@
           { symbol: "⭐", weight: 1 },
           { symbol: "🔔", weight: 1 }
         ]
-      },
-      {
-        name: "Mid Slots",
-        cost: 20,
-        chance: 0.25,
-        reward: 40,
-        emojis: [
-          { symbol: "🍒", weight: 4 },
-          { symbol: "🍋", weight: 3 },
-          { symbol: "🍉", weight: 3 },
-          { symbol: "💎", weight: 2 },
-          { symbol: "⭐", weight: 2 },
-          { symbol: "🔔", weight: 1 }
-        ]
-      },
-      {
-        name: "High Stakes",
-        cost: 50,
-        chance: 0.1,
-        reward: 100,
-        emojis: [
-          { symbol: "🍒", weight: 2 },
-          { symbol: "🍋", weight: 2 },
-          { symbol: "🍉", weight: 2 },
-          { symbol: "💎", weight: 2 },
-          { symbol: "⭐", weight: 2 },
-          { symbol: "🔔", weight: 1 }
-        ]
       }
     ];
 
-    const machineEl = document.getElementById("machine");
-    const messageEl = document.getElementById("message");
-    const balanceEl = document.getElementById("balance");
-    const tierListEl = document.getElementById("tierList");
-
     function buildGrid() {
-      machineEl.innerHTML = "";
+      const machine = document.getElementById("machine");
+      machine.innerHTML = "";
       grid = [];
       for (let r = 0; r < rows; r++) {
         const row = [];
         for (let c = 0; c < cols; c++) {
-          const div = document.createElement("div");
-          div.classList.add("reel");
-          div.textContent = "❔";
-          machineEl.appendChild(div);
-          row.push(div);
+          const cell = document.createElement("div");
+          cell.className = "reel";
+          cell.textContent = "❔";
+          machine.appendChild(cell);
+          row.push(cell);
         }
         grid.push(row);
       }
     }
 
     function drawTierList() {
-      tierListEl.innerHTML = "";
-      for (const tier of tiers) {
-        const el = document.createElement("div");
-        el.className = "slot-tier";
-        const emojis = tier.emojis.map(e => `${e.symbol} (x${e.weight})`).join(", ");
-        el.innerHTML = `
+      const tierList = document.getElementById("tierList");
+      tierList.innerHTML = "";
+      tiers.forEach(tier => {
+        const div = document.createElement("div");
+        div.className = "slot-tier";
+        div.innerHTML = `
           <strong>${tier.name}</strong>
           <span>Cost: ${tier.cost} coins</span>
-          <span>Win Chance: ${(tier.chance * 100).toFixed(0)}%</span>
+          <span>Chance: ${(tier.chance * 100).toFixed(0)}%</span>
           <span>Reward: ${tier.reward} coins</span>
-          <span>Emojis: ${emojis}</span>
+          <span>Emojis: ${tier.emojis.map(e => `${e.symbol} x${e.weight}`).join(", ")}</span>
         `;
-        tierListEl.appendChild(el);
-      }
+        tierList.appendChild(div);
+      });
     }
 
-    function getRandomEmojiFromTier(tier) {
-      const list = [];
-      tier.emojis.forEach(e => {
-        for (let i = 0; i < e.weight; i++) list.push(e.symbol);
-      });
-      return list[Math.floor(Math.random() * list.length)];
+    function getRandomEmoji(tier) {
+      const pool = tier.emojis.flatMap(e => Array(e.weight).fill(e.symbol));
+      return pool[Math.floor(Math.random() * pool.length)];
     }
 
     function spin() {
-      const tier = tiers[0]; // Basic Slots for now
+      const tier = tiers[0];
       if (balance < tier.cost) {
-        messageEl.textContent = "💸 Not enough coins!";
+        document.getElementById("message").textContent = "💸 Not enough coins!";
         return;
       }
-
       balance -= tier.cost;
-      const values = [];
 
+      let values = [], win = Math.random() < tier.chance;
       for (let r = 0; r < rows; r++) {
         values[r] = [];
         for (let c = 0; c < cols; c++) {
-          const emoji = getRandomEmojiFromTier(tier);
+          const emoji = getRandomEmoji(tier);
           values[r][c] = emoji;
           grid[r][c].textContent = emoji;
+          grid[r][c].style.animation = "none";
+          void grid[r][c].offsetWidth;
+          grid[r][c].style.animation = "spinIn 0.4s ease-in-out";
         }
       }
 
-      let win = Math.random() < tier.chance;
+      let payout = tier.reward;
+      if (win && boosts.doubleProfit && Math.random() < 0.15) {
+        payout *= 2;
+        showJackpotAnimation();
+      } else if (win && payout >= 50) {
+        showJackpotAnimation();
+      }
+
       if (win) {
-        let payout = tier.reward;
-        if (boosts.doubleProfit && Math.random() < 0.15) {
-          payout *= 2;
-          messageEl.textContent = "💥 Boost activated! Double payout!";
-        } else {
-          messageEl.textContent = `🎉 You win ${payout} coins!`;
-        }
         balance += payout;
+        document.getElementById("message").textContent = `🎉 You win ${payout} coins!`;
       } else {
-        messageEl.textContent = "😢 No match. Try again!";
+        document.getElementById("message").textContent = "😢 No match. Try again!";
       }
 
-      balanceEl.textContent = `Balance: ${balance}`;
+      document.getElementById("balance").textContent = `Balance: ${balance}`;
     }
 
     function resetGame() {
       balance = 100;
       boosts.doubleProfit = false;
-      messageEl.textContent = "Game reset.";
-      balanceEl.textContent = `Balance: ${balance}`;
+      document.getElementById("message").textContent = "Game reset.";
+      document.getElementById("balance").textContent = `Balance: ${balance}`;
       buildGrid();
     }
 
     function buyItem(item) {
-      if (item === "doubleProfit") {
-        if (balance < 50) {
-          messageEl.textContent = "❌ Not enough coins for Double Profit Boost!";
-          return;
-        }
-        if (boosts.doubleProfit) {
-          messageEl.textContent = "🟡 You already own this boost.";
-          return;
-        }
-        balance -= 50;
+      if (item === 'doubleProfit' && !boosts.doubleProfit && balance >= 50) {
         boosts.doubleProfit = true;
-        messageEl.textContent = "✅ Double Profit Boost activated!";
-        balanceEl.textContent = `Balance: ${balance}`;
+        balance -= 50;
+        document.getElementById("message").textContent = "✅ Double Profit Boost activated!";
+        document.getElementById("balance").textContent = `Balance: ${balance}`;
+      } else {
+        document.getElementById("message").textContent = "❌ Cannot buy item.";
       }
     }
 
-    function toggleDropdown(button) {
-      const parent = button.parentElement;
-      parent.classList.toggle("active");
+    function toggleDropdown(btn) {
+      btn.parentElement.classList.toggle("active");
     }
 
-    // Init
+    function showJackpotAnimation() {
+      const jackpotText = document.createElement('div');
+      jackpotText.className = 'jackpot-text';
+      jackpotText.textContent = '🎉 JACKPOT! 🎉';
+      document.body.appendChild(jackpotText);
+      setTimeout(() => document.body.removeChild(jackpotText), 1600);
+      triggerConfetti(100);
+    }
+
+    function triggerConfetti(count) {
+      for (let i = 0; i < count; i++) {
+        const confetti = document.createElement('div');
+        confetti.className = 'confetti';
+        confetti.style.left = `${Math.random() * 100}vw`;
+        confetti.style.top = `${Math.random() * 20 + 10}vh`;
+        confetti.style.backgroundColor = `hsl(${Math.random() * 360}, 100%, 60%)`;
+        confetti.style.animationDuration = `${Math.random() * 1 + 1.5}s`;
+        document.body.appendChild(confetti);
+        setTimeout(() => confetti.remove(), 2000);
+      }
+    }
+
     buildGrid();
     drawTierList();
   </script>
-
 </body>
 </html>
