@@ -73,6 +73,7 @@ SEGMENTS:
       background: #333;
       border-radius: 8px;
       font-size: 0.9rem;
+      white-space: pre-line;
     }
     .dropdown {
       background: #222;
@@ -156,171 +157,204 @@ SEGMENTS:
 
   <!-- SEGMENT 3: JS LOGIC -->
   <script>
+    const rows = 4, cols = 6;
+    let balance = 100;
+    let boosts = { doubleProfit: false };
+    let grid = [];
+
+    const tiers = [
+      {
+        name: "Basic Slots", cost: 10, chance: 0.7, reward: 20,
+        emojis: [
+          { symbol: "🍒", weight: 5 },
+          { symbol: "🍋", weight: 4 },
+          { symbol: "🍉", weight: 3 },
+          { symbol: "💎", weight: 2 },
+          { symbol: "⭐", weight: 2 },
+          { symbol: "🔔", weight: 2 }
+        ]
+      }
+    ];
+
+    function drawTierList() {
+      const tierList = document.getElementById("tierList");
+      tierList.innerHTML = "";
+      tiers.forEach(tier => {
+        const div = document.createElement("div");
+        div.className = "slot-tier";
+        div.innerHTML = `
+<strong>${tier.name}</strong>
+Cost: ${tier.cost} 💰
+Chance: ${(tier.chance * 100).toFixed(0)}%
+Reward: ${tier.reward} 💰
+
+${tier.emojis.map(e => `${e.symbol} ${(e.weight * 10).toFixed(0)}% → ${tier.reward} 💰`).join("\n")}`;
+        tierList.appendChild(div);
+      });
+    }
+
     function toggleDropdown(btn) {
-    const parent = btn.parentElement;
-    parent.classList.toggle("active");
-  }
+      const parent = btn.parentElement;
+      parent.classList.toggle("active");
+    }
 
-  function resetGame() {
-    balance = 100;
-    boosts = { doubleProfit: false };
-    document.getElementById("message").textContent = "Game reset!";
-    updateBalance();
-  }
-
-  function buyItem(item) {
-    if (item === "doubleProfit" && balance >= 50) {
-      balance -= 50;
-      boosts.doubleProfit = true;
+    function resetGame() {
+      balance = 100;
+      boosts = { doubleProfit: false };
+      document.getElementById("message").textContent = "Game reset!";
       updateBalance();
-      document.getElementById("message").textContent = "Double Profit Boost Activated!";
-    } else {
-      document.getElementById("message").textContent = "Not enough coins!";
-    }
-  }
-
-  function updateBalance() {
-    document.getElementById("balance").textContent = `Balance: ${balance}`;
-  }
-
-  function spin() {
-    const tier = tiers[0];
-    if (balance < tier.cost) {
-      document.getElementById("message").textContent = "Not enough coins to spin!";
-      return;
     }
 
-    balance -= tier.cost;
-    updateBalance();
-    grid = [];
+    function buyItem(item) {
+      if (item === "doubleProfit" && balance >= 50) {
+        balance -= 50;
+        boosts.doubleProfit = true;
+        updateBalance();
+        document.getElementById("message").textContent = "Double Profit Boost Activated!";
+      } else {
+        document.getElementById("message").textContent = "Not enough coins!";
+      }
+    }
 
-    const symbols = tier.emojis.flatMap(e => Array(e.weight).fill(e.symbol));
-    const slots = document.getElementById("machine");
-    slots.innerHTML = "";
+    function updateBalance() {
+      document.getElementById("balance").textContent = `Balance: ${balance}`;
+    }
 
-    for (let r = 0; r < rows; r++) {
-      grid[r] = [];
-      for (let c = 0; c < cols; c++) {
-        const spinDelay = Math.random() * 500 + 300;
-        const reel = document.createElement("div");
-        reel.className = "reel";
-        slots.appendChild(reel);
+    function spin() {
+      const tier = tiers[0];
+      if (balance < tier.cost) {
+        document.getElementById("message").textContent = "Not enough coins to spin!";
+        return;
+      }
 
-        let spinCount = 15 + Math.floor(Math.random() * 10);
-        let i = 0;
-        const spinInterval = setInterval(() => {
-          const randEmoji = symbols[Math.floor(Math.random() * symbols.length)];
-          reel.textContent = randEmoji;
-          if (++i >= spinCount) {
-            clearInterval(spinInterval);
-            const final = symbols[Math.floor(Math.random() * symbols.length)];
-            reel.textContent = final;
-            grid[r][c] = final;
+      balance -= tier.cost;
+      updateBalance();
+      grid = [];
 
-            if (r === rows - 1 && c === cols - 1) {
-              setTimeout(() => checkPatterns(grid, tier.reward), 300);
+      const symbols = tier.emojis.flatMap(e => Array(e.weight).fill(e.symbol));
+      const slots = document.getElementById("machine");
+      slots.innerHTML = "";
+
+      for (let r = 0; r < rows; r++) {
+        grid[r] = [];
+        for (let c = 0; c < cols; c++) {
+          const spinDelay = Math.random() * 500 + 300;
+          const reel = document.createElement("div");
+          reel.className = "reel";
+          slots.appendChild(reel);
+
+          let spinCount = 15 + Math.floor(Math.random() * 10);
+          let i = 0;
+          const spinInterval = setInterval(() => {
+            const randEmoji = symbols[Math.floor(Math.random() * symbols.length)];
+            reel.textContent = randEmoji;
+            if (++i >= spinCount) {
+              clearInterval(spinInterval);
+              const final = symbols[Math.floor(Math.random() * symbols.length)];
+              reel.textContent = final;
+              grid[r][c] = final;
+
+              if (r === rows - 1 && c === cols - 1) {
+                setTimeout(() => checkPatterns(grid, tier.reward), 300);
+              }
             }
-          }
-        }, spinDelay / spinCount);
-      }
-    }
-  }
-
-  function checkPatterns(grid, baseReward) {
-    let matched = [];
-    const countSymbol = (line) => {
-      return line.reduce((acc, s) => {
-        acc[s] = (acc[s] || 0) + 1;
-        return acc;
-      }, {});
-    };
-
-    // Horizontal & vertical
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c <= cols - 3; c++) {
-        const line = grid[r].slice(c, c + 3);
-        const freq = countSymbol(line);
-        for (let sym in freq) {
-          if (freq[sym] >= 3) matched.push({ count: freq[sym], symbol: sym });
-        }
-      }
-    }
-    for (let c = 0; c < cols; c++) {
-      for (let r = 0; r <= rows - 3; r++) {
-        const line = [grid[r][c], grid[r + 1][c], grid[r + 2][c]];
-        const freq = countSymbol(line);
-        for (let sym in freq) {
-          if (freq[sym] >= 3) matched.push({ count: freq[sym], symbol: sym });
+          }, spinDelay / spinCount);
         }
       }
     }
 
-    // Diagonals
-    for (let r = 0; r <= rows - 3; r++) {
-      for (let c = 0; c <= cols - 3; c++) {
-        const diag1 = [grid[r][c], grid[r + 1][c + 1], grid[r + 2][c + 2]];
-        const diag2 = [grid[r + 2][c], grid[r + 1][c + 1], grid[r][c + 2]];
-        [diag1, diag2].forEach(line => {
+    function checkPatterns(grid, baseReward) {
+      let matched = [];
+      const countSymbol = (line) => {
+        return line.reduce((acc, s) => {
+          acc[s] = (acc[s] || 0) + 1;
+          return acc;
+        }, {});
+      };
+
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c <= cols - 3; c++) {
+          const line = grid[r].slice(c, c + 3);
           const freq = countSymbol(line);
           for (let sym in freq) {
             if (freq[sym] >= 3) matched.push({ count: freq[sym], symbol: sym });
           }
-        });
+        }
       }
-    }
-
-    // Big triangle (custom pattern - 6x4 same emoji)
-    const allSame = grid.flat().every(sym => sym === grid[0][0]);
-    if (allSame) {
-      matched.push({ count: rows * cols, symbol: grid[0][0], jackpot: true });
-    }
-
-    if (matched.length === 0) {
-      document.getElementById("message").textContent = "No match. Try again!";
-      return;
-    }
-
-    let totalReward = 0;
-    matched.forEach(match => {
-      let multiplier = match.count / 3;
-      let reward = Math.floor(baseReward * multiplier);
-      if (match.jackpot) {
-        showJackpot();
-        reward *= 5;
+      for (let c = 0; c < cols; c++) {
+        for (let r = 0; r <= rows - 3; r++) {
+          const line = [grid[r][c], grid[r + 1][c], grid[r + 2][c]];
+          const freq = countSymbol(line);
+          for (let sym in freq) {
+            if (freq[sym] >= 3) matched.push({ count: freq[sym], symbol: sym });
+          }
+        }
       }
-      if (boosts.doubleProfit && Math.random() < 0.15) {
-        reward *= 2;
-        document.getElementById("message").textContent = `Lucky boost! ${match.symbol} x${match.count} → ${reward} 💰`;
-      } else {
-        document.getElementById("message").textContent = `${match.symbol} x${match.count} → ${reward} 💰`;
+
+      for (let r = 0; r <= rows - 3; r++) {
+        for (let c = 0; c <= cols - 3; c++) {
+          const diag1 = [grid[r][c], grid[r + 1][c + 1], grid[r + 2][c + 2]];
+          const diag2 = [grid[r + 2][c], grid[r + 1][c + 1], grid[r][c + 2]];
+          [diag1, diag2].forEach(line => {
+            const freq = countSymbol(line);
+            for (let sym in freq) {
+              if (freq[sym] >= 3) matched.push({ count: freq[sym], symbol: sym });
+            }
+          });
+        }
       }
-      totalReward += reward;
-    });
 
-    balance += totalReward;
-    updateBalance();
-  }
+      const allSame = grid.flat().every(sym => sym === grid[0][0]);
+      if (allSame) {
+        matched.push({ count: rows * cols, symbol: grid[0][0], jackpot: true });
+      }
 
-  function showJackpot() {
-    const text = document.createElement("div");
-    text.className = "jackpot-text";
-    text.textContent = "🎉 JACKPOT! 🎉";
-    document.body.appendChild(text);
+      if (matched.length === 0) {
+        document.getElementById("message").textContent = "No match. Try again!";
+        return;
+      }
 
-    for (let i = 0; i < 100; i++) {
-      const conf = document.createElement("div");
-      conf.className = "confetti";
-      conf.style.left = `${Math.random() * 100}vw`;
-      conf.style.top = `0`;
-      conf.style.backgroundColor = `hsl(${Math.random() * 360}, 70%, 50%)`;
-      document.body.appendChild(conf);
-      setTimeout(() => conf.remove(), 2000);
+      let totalReward = 0;
+      matched.forEach(match => {
+        let multiplier = match.count / 3;
+        let reward = Math.floor(baseReward * multiplier);
+        if (match.jackpot) {
+          showJackpot();
+          reward *= 5;
+        }
+        if (boosts.doubleProfit && Math.random() < 0.15) {
+          reward *= 2;
+          document.getElementById("message").textContent = `Lucky boost! ${match.symbol} x${match.count} → ${reward} 💰`;
+        } else {
+          document.getElementById("message").textContent = `${match.symbol} x${match.count} → ${reward} 💰`;
+        }
+        totalReward += reward;
+      });
+
+      balance += totalReward;
+      updateBalance();
     }
 
-    setTimeout(() => text.remove(), 1500);
-  }
+    function showJackpot() {
+      const text = document.createElement("div");
+      text.className = "jackpot-text";
+      text.textContent = "🎉 JACKPOT! 🎉";
+      document.body.appendChild(text);
 
-  drawTierList();
+      for (let i = 0; i < 100; i++) {
+        const conf = document.createElement("div");
+        conf.className = "confetti";
+        conf.style.left = `${Math.random() * 100}vw`;
+        conf.style.top = `0`;
+        conf.style.backgroundColor = `hsl(${Math.random() * 360}, 70%, 50%)`;
+        document.body.appendChild(conf);
+        setTimeout(() => conf.remove(), 2000);
+      }
+
+      setTimeout(() => text.remove(), 1500);
+    }
+
+    drawTierList();
   </script>
 </body>
 </html>
