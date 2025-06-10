@@ -62,10 +62,6 @@
       background: #218838;
     }
 
-    .controls, .shop, .settings {
-      margin-top: 1rem;
-    }
-
     .message {
       margin-top: 1rem;
       font-size: 1.2rem;
@@ -88,7 +84,7 @@
       margin-top: 0;
     }
 
-    .slot-tier, .shop-item {
+    .slot-tier {
       margin: 0.5rem 0;
       padding: 0.5rem;
       background: #333;
@@ -96,9 +92,40 @@
       font-size: 0.9rem;
     }
 
-    .slot-tier span, .shop-item span {
+    .slot-tier span {
       display: block;
       margin: 2px 0;
+    }
+
+    .dropdown {
+      background: #222;
+      border: 1px solid #444;
+      border-radius: 8px;
+      margin: 0.5rem 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+    }
+
+    .dropdown-content {
+      padding: 1rem;
+      display: none;
+    }
+
+    .dropdown.active .dropdown-content {
+      display: block;
+    }
+
+    .dropdown-btn {
+      background: #333;
+      color: white;
+      padding: 10px 15px;
+      border: none;
+      font-size: 1rem;
+      width: 100%;
+      text-align: left;
+      cursor: pointer;
+      border-radius: 8px;
+      margin-bottom: 0.5rem;
     }
   </style>
 </head>
@@ -115,14 +142,19 @@
 
     <div class="message" id="message">Press Spin to play.</div>
 
-    <div class="settings">
-      <h2>⚙️ Settings</h2>
-      <button onclick="resetGame()">Restart Game</button>
+    <div class="dropdown">
+      <button class="dropdown-btn" onclick="toggleDropdown(this)">⚙️ Settings</button>
+      <div class="dropdown-content">
+        <button onclick="resetGame()">Restart Game</button>
+        <p>More settings coming soon!</p>
+      </div>
     </div>
 
-    <div class="shop">
-      <h2>🛍 Shop</h2>
-      <button onclick="buyItem('doubleProfit')">Buy Double Profit Boost (15%) - 50 coins</button>
+    <div class="dropdown">
+      <button class="dropdown-btn" onclick="toggleDropdown(this)">🛍 Shop</button>
+      <div class="dropdown-content">
+        <button onclick="buyItem('doubleProfit')">Buy Double Profit Boost (15%) - 50 coins</button>
+      </div>
     </div>
   </div>
 
@@ -132,20 +164,58 @@
   </div>
 
   <script>
-    const emojis = ["🍒", "🍋", "🍉", "💎", "⭐", "🔔"];
     const rows = 4;
     const cols = 6;
-    const baseSpinCost = 10;
     let balance = 100;
     let grid = [];
     let boosts = {
       doubleProfit: false,
     };
 
+    // Define tiers with emojis and weights
     const tiers = [
-      { name: "Basic Slots", chance: 0.4, reward: 20, cost: 10 },
-      { name: "Mid Slots", chance: 0.25, reward: 40, cost: 20 },
-      { name: "High Stakes", chance: 0.1, reward: 100, cost: 50 }
+      {
+        name: "Basic Slots",
+        cost: 10,
+        chance: 0.4,
+        reward: 20,
+        emojis: [
+          { symbol: "🍒", weight: 5 },
+          { symbol: "🍋", weight: 4 },
+          { symbol: "🍉", weight: 3 },
+          { symbol: "💎", weight: 2 },
+          { symbol: "⭐", weight: 1 },
+          { symbol: "🔔", weight: 1 }
+        ]
+      },
+      {
+        name: "Mid Slots",
+        cost: 20,
+        chance: 0.25,
+        reward: 40,
+        emojis: [
+          { symbol: "🍒", weight: 4 },
+          { symbol: "🍋", weight: 3 },
+          { symbol: "🍉", weight: 3 },
+          { symbol: "💎", weight: 2 },
+          { symbol: "⭐", weight: 2 },
+          { symbol: "🔔", weight: 1 }
+        ]
+      },
+      {
+        name: "High Stakes",
+        cost: 50,
+        chance: 0.1,
+        reward: 100,
+        emojis: [
+          { symbol: "🍒", weight: 2 },
+          { symbol: "🍋", weight: 2 },
+          { symbol: "🍉", weight: 2 },
+          { symbol: "💎", weight: 2 },
+          { symbol: "⭐", weight: 2 },
+          { symbol: "🔔", weight: 1 }
+        ]
+      }
     ];
 
     const machineEl = document.getElementById("machine");
@@ -153,7 +223,6 @@
     const balanceEl = document.getElementById("balance");
     const tierListEl = document.getElementById("tierList");
 
-    // Build grid
     function buildGrid() {
       machineEl.innerHTML = "";
       grid = [];
@@ -170,28 +239,33 @@
       }
     }
 
-    // Draw tier list
     function drawTierList() {
       tierListEl.innerHTML = "";
       for (const tier of tiers) {
         const el = document.createElement("div");
         el.className = "slot-tier";
+        const emojis = tier.emojis.map(e => `${e.symbol} (x${e.weight})`).join(", ");
         el.innerHTML = `
           <strong>${tier.name}</strong>
-          <span>Spin Cost: ${tier.cost} coins</span>
+          <span>Cost: ${tier.cost} coins</span>
           <span>Win Chance: ${(tier.chance * 100).toFixed(0)}%</span>
           <span>Reward: ${tier.reward} coins</span>
+          <span>Emojis: ${emojis}</span>
         `;
         tierListEl.appendChild(el);
       }
     }
 
-    function getRandomEmoji() {
-      return emojis[Math.floor(Math.random() * emojis.length)];
+    function getRandomEmojiFromTier(tier) {
+      const list = [];
+      tier.emojis.forEach(e => {
+        for (let i = 0; i < e.weight; i++) list.push(e.symbol);
+      });
+      return list[Math.floor(Math.random() * list.length)];
     }
 
     function spin() {
-      const tier = tiers[0]; // Use basic tier for now
+      const tier = tiers[0]; // Basic Slots for now
       if (balance < tier.cost) {
         messageEl.textContent = "💸 Not enough coins!";
         return;
@@ -203,7 +277,7 @@
       for (let r = 0; r < rows; r++) {
         values[r] = [];
         for (let c = 0; c < cols; c++) {
-          const emoji = getRandomEmoji();
+          const emoji = getRandomEmojiFromTier(tier);
           values[r][c] = emoji;
           grid[r][c].textContent = emoji;
         }
@@ -251,7 +325,12 @@
       }
     }
 
-    // Initialize
+    function toggleDropdown(button) {
+      const parent = button.parentElement;
+      parent.classList.toggle("active");
+    }
+
+    // Init
     buildGrid();
     drawTierList();
   </script>
